@@ -5,6 +5,7 @@ import (
 	"crawly/internal/cache"
 	"crawly/internal/model"
 	"crawly/internal/parse"
+	"fmt"
 	"net/http"
 
 	"golang.org/x/net/html"
@@ -18,17 +19,18 @@ func Start(
 	parseQueue chan model.Fetched,
 	cache *cache.Cache,
 ) (any, error) {
-	fetch(ctx, root, depth, 1, parseQueue)
-	select {
-	case <-ctx.Done():
-		return nil, nil
-	case parseable := <-parseQueue:
-		go parse.HTML(parseable, fetchQueue, cache)
-	case req := <-fetchQueue:
-		// TODO: Add semaphore here
-		go fetch(ctx, req.URL, depth, req.Level+1, parseQueue)
+	go fetch(ctx, root, depth, 1, parseQueue)
+	for {
+		select {
+		case <-ctx.Done():
+			return nil, nil
+		case parseable := <-parseQueue:
+			parse.HTML(parseable, fetchQueue, cache)
+		case req := <-fetchQueue:
+			// TODO: Add semaphore here
+			fetch(ctx, req.URL, depth, req.Level+1, parseQueue)
+		}
 	}
-	return nil, nil
 }
 
 func fetch(ctx context.Context, url string, depth, currentLevel int, out chan<- model.Fetched) {
@@ -45,6 +47,7 @@ func fetch(ctx context.Context, url string, depth, currentLevel int, out chan<- 
 		return
 	}
 	fetched := extract(res)
+	fmt.Printf("html node: %v\n", fetched)
 	out <- model.Fetched{
 		URL:   url,
 		Level: currentLevel,
