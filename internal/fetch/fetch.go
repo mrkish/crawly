@@ -18,20 +18,25 @@ func Start(
 	parseQueue chan model.Fetched,
 	cache *cache.Cache,
 ) (any, error) {
-	fetch(root, depth, 1, parseQueue)
+	fetch(ctx, root, depth, 1, parseQueue)
 	select {
 	case <-ctx.Done():
 		return nil, nil
-	case parseable := <- parseQueue:
+	case parseable := <-parseQueue:
 		go parse.HTML(parseable, fetchQueue, cache)
-	case req := <- fetchQueue:
+	case req := <-fetchQueue:
 		// TODO: Add semaphore here
-		go fetch(req.URL, depth, req.Level + 1, parseQueue)
+		go fetch(ctx, req.URL, depth, req.Level+1, parseQueue)
 	}
 	return nil, nil
 }
 
-func fetch(url string, depth, currentLevel int, out chan<- model.Fetched) {
+func fetch(ctx context.Context, url string, depth, currentLevel int, out chan<- model.Fetched) {
+	select {
+	case <-ctx.Done():
+		return
+	default:
+	}
 	if currentLevel > depth {
 		return
 	}
@@ -41,9 +46,9 @@ func fetch(url string, depth, currentLevel int, out chan<- model.Fetched) {
 	}
 	fetched := extract(res)
 	out <- model.Fetched{
-		URL: url,
+		URL:   url,
 		Level: currentLevel,
-		Doc: fetched,
+		Doc:   fetched,
 	}
 }
 

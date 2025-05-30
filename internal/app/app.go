@@ -55,10 +55,13 @@ func Run(info BuildInfo) error {
 	cache := cache.New()
 
 	fmt.Printf("got flags: %v\n", flags)
-	_, err := fetch.Start(ctx, flags.URL, flags.Workers, flags.Depth, fetchQueue, parseQueue, cache)
-	if err != nil {
-		return err
-	}
+	go func() {
+		_, _ = fetch.Start(ctx, flags.URL, flags.Workers, flags.Depth, fetchQueue, parseQueue, cache)
+	}()
+
+	<- quit
+	cancel()
+	
 
 	// report.Output(result)
 
@@ -76,7 +79,7 @@ func readFlags() Flags {
 	logLevel := flag.String("l", "debug", "Defines logging output level. Default: error.")
 	workers := flag.Int("w", 5, "Defines the number of workers (concurrent) to use. Default: 5.")
 	output := flag.String("o", "json", "Defines the output format. Default: JSON.")
-	url := flag.String("u", "", "Defines the root URL to crawl. Required value.")
+	url := flag.String("u", "https://www.scrapingcourse.com/ecommerce/", "Defines the root URL to crawl. Required value.")
 	flag.Parse()
 	return Flags{
 		Depth:    *depth,
