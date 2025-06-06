@@ -2,32 +2,15 @@ package app
 
 import (
 	"context"
-	"crawly/internal/cache"
-	"crawly/internal/fetch"
-	"crawly/internal/model"
+	"crawly/internal/crawl"
+	"crawly/pkg/log"
 	"errors"
-	"flag"
-	"fmt"
+	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
 )
-
-type BuildInfo struct {
-	BuildTime time.Time
-	Commit    string
-	Version   string
-}
-
-type Flags struct {
-	Depth    int
-	Workers  int
-	Timeout  int
-	LogLevel string
-	Output   string
-	URL      string
-}
 
 var quit = func() chan os.Signal {
 	q := make(chan os.Signal, 1)
@@ -45,48 +28,44 @@ func Run(info BuildInfo) error {
 	if flags.URL == "" {
 		return errors.New("no root URL specified")
 	}
+	slog.Debug("setting up for crawling", slog.Any("flags", flags))
 
-	ctx, cancel := context.WithTimeout(context.Background(), time.Second*time.Duration(flags.Timeout))
+	ctx, cancel := context.WithTimeout(context.Background(), flags.Timeout)
 	defer cancel()
 
-	parseQueue := make(chan model.Fetched)
-	fetchQueue := make(chan model.Parsed)
+	// cache := cache.New()
+	log.Init(flags.LogLevel)
 
-	cache := cache.New()
+	type result struct {
+		links []crawl.Link
+		err   error
+	}
+	resultChan := make(chan result)
 
-	fmt.Printf("got flags: %v\n", flags)
-	go func() {
-		_, _ = fetch.Start(ctx, flags.URL, flags.Workers, flags.Depth, fetchQueue, parseQueue, cache)
-	}()
+	start := time.Now()
 
-	<- quit
-	cancel()
-	
+	go func(out chan<- result) {
+		defer close(resultChan)
+		links, err := crawl.FromRoot(ctx, flags.URL, flags.Depth)
+		out <- result{links, err}
+	}(resultChan)
 
-	// report.Output(result)
-
-	return nil
-}
-
-// Exit sends an interrupt signal to end the program
-func Exit() {
-	quit <- os.Interrupt
-}
-
-func readFlags() Flags {
-	depth := flag.Int("d", 3, "Defines how many levels below the root URL should be crawled. Default: 3.")
-	timeout := flag.Int("t", 300, "Defines the maximum time in seconds to allow the crawling to continue. Default: 300.")
-	logLevel := flag.String("l", "debug", "Defines logging output level. Default: error.")
-	workers := flag.Int("w", 5, "Defines the number of workers (concurrent) to use. Default: 5.")
-	output := flag.String("o", "json", "Defines the output format. Default: JSON.")
-	url := flag.String("u", "https://www.scrapingcourse.com/ecommerce/", "Defines the root URL to crawl. Required value.")
-	flag.Parse()
-	return Flags{
-		Depth:    *depth,
-		Timeout:  *timeout,
-		Workers:  *workers,
-		LogLevel: *logLevel,
-		Output:   *output,
-		URL:      *url,
+	for {
+		select {
+		case <-ctx.Done():
+			cancel()
+			return errors.New("timed out attempting to crawl")
+		case <-quit:
+			slog.Error("received request to cancel, stopping")
+			cancel()
+			return nil
+		case result := <-resultChan:
+			slog.Info("finished crawling",
+				log.Duration(start),
+				slog.Any("links", result.links),
+				log.Err(result.err),
+			)
+			return nil
+		}
 	}
 }

@@ -7,8 +7,9 @@ import (
 )
 
 type Fetched struct {
-	Doc *html.Node
-	Level int
-	URL string
-	Root url.URL
+	Doc    *html.Node
+	Tokens *html.Tokenizer
+	Level  int
+	URL    string
+	Root   url.URL
 }

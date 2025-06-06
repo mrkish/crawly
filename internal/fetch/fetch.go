@@ -1,11 +1,13 @@
 package fetch
 
 import (
+	"bytes"
 	"context"
 	"crawly/internal/cache"
 	"crawly/internal/model"
 	"crawly/internal/parse"
-	"fmt"
+	"crawly/internal/semaphore"
+	"io"
 	"net/http"
 
 	"golang.org/x/net/html"
@@ -19,16 +21,29 @@ func Start(
 	parseQueue chan model.Fetched,
 	cache *cache.Cache,
 ) (any, error) {
+	fetchSem := semaphore.New(workers)
+	parseSem := semaphore.New(workers)
+	defer fetchSem.Close()
+	defer parseSem.Close()
+
 	go fetch(ctx, root, depth, 1, parseQueue)
+
 	for {
 		select {
 		case <-ctx.Done():
 			return nil, nil
 		case parseable := <-parseQueue:
-			parse.HTML(parseable, fetchQueue, cache)
+			parseSem.Acquire()
+			go func() {
+				defer parseSem.Free()
+				parse.HTML(parseable, parseQueue, fetchQueue, cache, depth)
+			}()
 		case req := <-fetchQueue:
-			// TODO: Add semaphore here
-			fetch(ctx, req.URL, depth, req.Level+1, parseQueue)
+			fetchSem.Acquire()
+			go func() {
+				defer fetchSem.Free()
+				fetch(ctx, req.URL, depth, req.Level+1, parseQueue)
+			}()
 		}
 	}
 }
@@ -46,20 +61,34 @@ func fetch(ctx context.Context, url string, depth, currentLevel int, out chan<- 
 	if err != nil {
 		return
 	}
-	fetched := extract(res)
-	fmt.Printf("html node: %v\n", fetched)
+	defer res.Body.Close()
+	b, err := io.ReadAll(res.Body)
+	if err != nil {
+		return
+	}
+	doc, err := html.Parse(bytes.NewBuffer(b))
+	if err != nil {
+		return
+	}
+	tok := html.NewTokenizer(bytes.NewBuffer(b))
+	// fmt.Printf("html node: %v\n", fetched)
+	body := parse.GetBody(doc)
+	if body == nil {
+		return
+	}
 	out <- model.Fetched{
-		URL:   url,
-		Level: currentLevel,
-		Doc:   fetched,
+		URL:    url,
+		Level:  currentLevel,
+		Doc:    body,
+		Tokens: tok,
 	}
 }
 
-func extract(res *http.Response) *html.Node {
-	defer res.Body.Close()
-	doc, err := html.Parse(res.Body)
-	if err != nil {
-		return nil
-	}
-	return doc
-}
+// func extract(res *http.Response) *html.Node {
+// 	defer res.Body.Close()
+// 	doc, err := html.Parse(res.Body)
+// 	if err != nil {
+// 		return nil
+// 	}
+// 	return doc
+// }
