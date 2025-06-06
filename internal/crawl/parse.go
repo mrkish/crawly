@@ -2,6 +2,7 @@ package crawl
 
 import (
 	"context"
+	"crawly/internal/cache"
 	"crawly/pkg/log"
 	"io"
 	"log/slog"
@@ -17,15 +18,14 @@ const (
 	QUERY_PARAM string = "?"
 )
 
-func parse(ctx context.Context, root *url.URL, page io.ReadCloser, maxDepth, currentDepth int, seen map[string]Link) ([]Link, error) {
+func parse(
+	ctx context.Context,
+	root *url.URL,
+	page io.ReadCloser,
+	currentDepth int,
+	cache *cache.Cache[string, Link],
+) ([]Link, error) {
 	defer page.Close()
-	if maxDepth == currentDepth {
-		return nil, ErrMaxDepthStop
-	}
-
-	if seen == nil {
-		seen = make(map[string]Link)
-	}
 
 	var links []Link
 	tokens := html.NewTokenizer(page)
@@ -45,7 +45,7 @@ func parse(ctx context.Context, root *url.URL, page io.ReadCloser, maxDepth, cur
 				if href == "" {
 					continue
 				}
-				if _, ok := seen[href]; ok {
+				if cache.Has(href) {
 					slog.Log(ctx, log.Trace, "seen link, skipping", slog.String("href", href))
 					continue
 				}
@@ -59,7 +59,7 @@ func parse(ctx context.Context, root *url.URL, page io.ReadCloser, maxDepth, cur
 				}
 				// is a link we can parse next
 				link := Link{URL: href, Depth: currentDepth}
-				seen[href] = link
+				cache.Add(href, link)
 				slog.Log(ctx, log.Trace, "found link", slog.Any("link", link))
 				links = append(links, link)
 			}

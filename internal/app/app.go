@@ -37,7 +37,7 @@ func Run(info BuildInfo) error {
 	log.Init(flags.LogLevel)
 
 	type result struct {
-		links []crawl.Link
+		pages []crawl.Page
 		err   error
 	}
 	resultChan := make(chan result)
@@ -62,7 +62,7 @@ func Run(info BuildInfo) error {
 		case result := <-resultChan:
 			slog.Info("finished crawling",
 				log.Duration(start),
-				slog.Any("links", result.links),
+				"pages", result.pages,
 				log.Err(result.err),
 			)
 			return nil
