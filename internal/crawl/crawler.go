@@ -7,20 +7,24 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/mrkish/crawly/internal/constants"
+	"github.com/mrkish/crawly/internal/fetch"
+	"github.com/mrkish/crawly/internal/model"
+	"github.com/mrkish/crawly/internal/parse"
 	"github.com/mrkish/crawly/pkg/cache"
 	"github.com/mrkish/crawly/pkg/log"
 	"github.com/mrkish/crawly/pkg/semaphore"
 )
 
-func FromRoot(ctx context.Context, root string, workers, maxDepth int) ([]Page, error) {
+func FromRoot(ctx context.Context, root string, workers, maxDepth int) ([]model.Page, error) {
 	rootURL, err := url.Parse(root)
 	if err != nil {
 		return nil, err
 	}
 
-	cache := cache.NewSet(func(key string) string { return strings.TrimRight(key, slash) })
+	cache := cache.NewSet(func(key string) string { return strings.TrimRight(key, constants.SLASH) })
 
-	linkQueue := make(chan Link)
+	linkQueue := make(chan model.Link)
 	defer close(linkQueue)
 
 	parsedPages, err := startCrawl(ctx, rootURL, workers, maxDepth, cache, linkQueue)
@@ -29,7 +33,7 @@ func FromRoot(ctx context.Context, root string, workers, maxDepth int) ([]Page, 
 	}
 
 	var pending uint32 = 1
-	var pages []Page
+	var pages []model.Page
 
 	for {
 		select {
@@ -67,17 +71,17 @@ func startCrawl(
 	rootURL *url.URL,
 	workers, maxDepth int,
 	cache *cache.Set[string],
-	linkQueue <-chan Link,
-) (<-chan Page, error) {
+	linkQueue <-chan model.Link,
+) (<-chan model.Page, error) {
 	var err error
-	parsedPages := make(chan Page)
+	parsedPages := make(chan model.Page)
 	sem := semaphore.New(workers)
 	defer sem.Close()
 
 	crawlPage := buildCrawler(rootURL, sem, cache)
 
-	var rootPage Page
-	rootPage.Links, err = crawlPage(ctx, Link{rootURL.String(), 1})
+	var rootPage model.Page
+	rootPage.Links, err = crawlPage(ctx, model.Link{URL: rootURL.String(), Depth: 1})
 	if err != nil {
 		return nil, err
 	}
@@ -105,7 +109,7 @@ func startCrawl(
 				case <-ctx.Done():
 					return
 				case l := <-linkQueue:
-					go func(link Link) {
+					go func(link model.Link) {
 						defer slog.Debug("crawling goroutine exited",
 							slog.String("url", link.URL),
 						)
@@ -122,7 +126,7 @@ func startCrawl(
 							)
 						}
 
-						parsedPages <- NewPage(link.URL, link.Depth, links...)
+						parsedPages <- model.NewPage(link.URL, link.Depth, links...)
 					}(l)
 				}
 			}
@@ -132,22 +136,22 @@ func startCrawl(
 	return parsedPages, nil
 }
 
-type crawlerFunc func(context.Context, Link) ([]Link, error)
+type crawlerFunc func(context.Context, model.Link) ([]model.Link, error)
 
 func buildCrawler(rootURL *url.URL, sem *semaphore.Weighted, cache *cache.Set[string]) crawlerFunc {
 	return func(
 		ctx context.Context,
-		link Link,
-	) ([]Link, error) {
+		link model.Link,
+	) ([]model.Link, error) {
 		defer sem.Free()
 		sem.Acquire()
 		cache.Add(link.URL)
 
-		data, err := fetch(ctx, link.URL)
+		data, err := fetch.Page(ctx, link.URL)
 		if err != nil {
 			return nil, err
 		}
 
-		return parse(ctx, data, rootURL, link.Depth, cache)
+		return parse.Page(ctx, data, rootURL, link.Depth, cache)
 	}
 }

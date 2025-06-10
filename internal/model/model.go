@@ -1,4 +1,4 @@
-package crawl
+package model
 
 type Link struct {
 	URL   string
