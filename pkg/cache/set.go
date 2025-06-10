@@ -1,12 +1,12 @@
 package cache
 
 type Set[K comparable] struct {
-	cache *Hash[K, struct{}]
+	cache *Hashed[K, struct{}]
 }
 
 func NewSet[K comparable](keyFn func(K) K) *Set[K] {
 	return &Set[K]{
-		cache: New[K, struct{}](keyFn, nil),
+		cache: NewHashed[K, struct{}](keyFn, nil),
 	}
 }
 

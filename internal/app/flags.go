@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-type Flags struct {
+type flags struct {
 	Depth    int
 	Workers  int
 	Timeout  time.Duration
@@ -14,7 +14,7 @@ type Flags struct {
 	URL      string
 }
 
-func readFlags() Flags {
+func readFlags() flags {
 	depth := flag.Int("d", 3, "Defines how many levels below the root URL should be crawled. Default: 3.")
 	timeout := flag.Int("t", 300, "Defines the maximum time in seconds to allow the crawling to continue. Default: 300.")
 	logLevel := flag.String("l", "info", "Defines logging output level. Default: error.")
@@ -22,7 +22,7 @@ func readFlags() Flags {
 	output := flag.String("o", "json", "Defines the output format. Default: JSON.")
 	url := flag.String("u", "https://www.scrapingcourse.com/ecommerce/", "Defines the root URL to crawl. Required value.")
 	flag.Parse()
-	return Flags{
+	return flags{
 		Depth:    *depth,
 		Timeout:  time.Second * time.Duration(*timeout),
 		Workers:  *workers,

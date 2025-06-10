@@ -18,13 +18,12 @@ func FromRoot(ctx context.Context, root string, workers, maxDepth int) ([]Page, 
 		return nil, err
 	}
 
-	rootPage := NewPage(root, 1)
 	cache := cache.NewSet(func(key string) string { return strings.TrimRight(key, slash) })
 
 	linkQueue := make(chan Link)
 	defer close(linkQueue)
 
-	parsedPages, err := startCrawl(ctx, rootURL, rootPage, workers, maxDepth, cache, linkQueue)
+	parsedPages, err := startCrawl(ctx, rootURL, workers, maxDepth, cache, linkQueue)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +65,6 @@ func FromRoot(ctx context.Context, root string, workers, maxDepth int) ([]Page, 
 func startCrawl(
 	ctx context.Context,
 	rootURL *url.URL,
-	rootPage Page,
 	workers, maxDepth int,
 	cache *cache.Set[string],
 	linkQueue <-chan Link,
@@ -74,9 +72,10 @@ func startCrawl(
 	var err error
 	parsedPages := make(chan Page)
 	sem := semaphore.New(workers)
-	crawlPage := buildCrawler(rootURL)
+	crawlPage := buildCrawler(rootURL, sem, cache)
 
-	rootPage.Links, err = crawlPage(ctx, rootPage.Link, sem, cache)
+	var rootPage Page
+	rootPage.Links, err = crawlPage(ctx, Link{rootURL.String(), 1})
 	if err != nil {
 		return nil, err
 	}
@@ -97,7 +96,7 @@ func startCrawl(
 	if maxDepth > 1 && foundLinks {
 		go func() {
 			defer close(parsedPages)
-			defer slog.Info("crawling goroutine exited")
+			defer slog.Debug("crawling goroutine exited")
 
 			for {
 				select {
@@ -113,7 +112,7 @@ func startCrawl(
 							slog.String("url", link.URL),
 						)
 
-						links, err := crawlPage(ctx, link, sem, cache)
+						links, err := crawlPage(ctx, link)
 						if err != nil {
 							slog.Error("error crawling",
 								slog.String("url", link.URL),
@@ -131,14 +130,12 @@ func startCrawl(
 	return parsedPages, nil
 }
 
-type crawlerFunc func(context.Context, Link, *semaphore.Weighted, *cache.Set[string]) ([]Link, error)
+type crawlerFunc func(context.Context, Link) ([]Link, error)
 
-func buildCrawler(rootURL *url.URL) crawlerFunc {
+func buildCrawler(rootURL *url.URL, sem *semaphore.Weighted, cache *cache.Set[string]) crawlerFunc {
 	return func(
 		ctx context.Context,
 		link Link,
-		sem *semaphore.Weighted,
-		cache *cache.Set[string],
 	) ([]Link, error) {
 		defer sem.Free()
 		sem.Acquire()

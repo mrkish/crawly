@@ -30,8 +30,10 @@ func Run(info BuildInfo) error {
 		return errors.New("no root URL specified")
 	}
 
-	log.Init(flags.LogLevel)
-	slog.Info("initiating crawling", slog.Any("flags", flags))
+	log.Init(flags.LogLevel, info.Commit, info.Version)
+	slog.Info("initiating crawling",
+		slog.Any("flags", flags),
+	)
 
 	ctx, cancel := context.WithTimeout(context.Background(), flags.Timeout)
 	defer cancel()
@@ -44,11 +46,11 @@ func Run(info BuildInfo) error {
 
 	start := time.Now()
 
-	go func(out chan<- result) {
+	go func() {
 		defer close(resultChan)
 		links, err := crawl.FromRoot(ctx, flags.URL, flags.Workers, flags.Depth)
-		out <- result{links, err}
-	}(resultChan)
+		resultChan <- result{links, err}
+	}()
 
 	for {
 		select {

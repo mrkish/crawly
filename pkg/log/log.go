@@ -4,6 +4,7 @@ import (
 	"context"
 	"log/slog"
 	"os"
+	"runtime/debug"
 	"time"
 )
 
@@ -25,10 +26,11 @@ var levels = map[slog.Leveler]string{
 	TraceLevel: "TRACE",
 }
 
-func Init(level string) {
+func Init(level string, commit, version string) {
+	logLevel := getLevel(level)
 	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		AddSource: true,
-		Level:     getLevel(level),
+		AddSource: logLevel < slog.LevelInfo,
+		Level:     logLevel,
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
 			if a.Key == slog.LevelKey {
 				level := a.Value.Any().(slog.Level)
@@ -41,7 +43,20 @@ func Init(level string) {
 			return a
 		},
 	})
-	slog.SetDefault(slog.New(handler))
+
+	logger := slog.New(handler)
+
+	if buildInfo, ok := debug.ReadBuildInfo(); ok && logLevel > slog.LevelInfo {
+		logger = logger.With(
+			slog.Group("buildInfo",
+				slog.String("commit", commit),
+				slog.String("verison", version),
+				slog.String("go_version", buildInfo.GoVersion),
+			),
+		)
+	}
+
+	slog.SetDefault(logger)
 	slog.Debug("configured logs")
 }
 
