@@ -24,7 +24,7 @@ func readFlags() Flags {
 	flag.Parse()
 	return Flags{
 		Depth:    *depth,
-		Timeout:  time.Millisecond * time.Duration(*timeout),
+		Timeout:  time.Second * time.Duration(*timeout),
 		Workers:  *workers,
 		LogLevel: *logLevel,
 		Output:   *output,

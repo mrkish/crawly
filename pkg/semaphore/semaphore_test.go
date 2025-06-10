@@ -1,7 +1,7 @@
 package semaphore_test
 
 import (
-	"crawly/internal/semaphore"
+	"crawly/pkg/semaphore"
 	"fmt"
 	"sync"
 	"testing"

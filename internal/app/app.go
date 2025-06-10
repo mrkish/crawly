@@ -46,7 +46,7 @@ func Run(info BuildInfo) error {
 
 	go func(out chan<- result) {
 		defer close(resultChan)
-		links, err := crawl.FromRoot(ctx, flags.URL, flags.Depth)
+		links, err := crawl.FromRoot(ctx, flags.URL, flags.Workers, flags.Depth)
 		out <- result{links, err}
 	}(resultChan)
 

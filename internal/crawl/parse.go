@@ -2,11 +2,13 @@ package crawl
 
 import (
 	"context"
-	"crawly/internal/cache"
+	"crawly/pkg/cache"
 	"crawly/pkg/log"
 	"io"
 	"log/slog"
 	"net/url"
+	"path/filepath"
+	"strings"
 
 	"golang.org/x/net/html"
 )
@@ -16,6 +18,7 @@ const (
 	HREF_KEY    string = "href"
 	REL_HASH    string = "#"
 	QUERY_PARAM string = "?"
+	SLASH       string = "/"
 )
 
 func parse(
@@ -28,6 +31,9 @@ func parse(
 	defer page.Close()
 
 	var links []Link
+
+	// use a map to de-dupe output
+	foundLinks := make(map[string]Link)
 	tokens := html.NewTokenizer(page)
 
 	for {
@@ -50,21 +56,36 @@ func parse(
 					continue
 				}
 				if isRelativeLink(href) {
+					cache.Add(href, Link{URL: href, Depth: currentDepth})
 					slog.Log(ctx, log.Trace, "href is relative, skipping", slog.String("href", href))
 					continue
 				}
 				if isExternalLink(root, href) {
+					cache.Add(href, Link{URL: href, Depth: currentDepth})
 					slog.Log(ctx, log.Trace, "href is external, skipping", slog.String("href", href))
 					continue
 				}
-				// is a link we can parse next
-				link := Link{URL: href, Depth: currentDepth}
-				cache.Add(href, link)
+				if isRelativeLink(href) {
+					cache.Add(href, Link{URL: href, Depth: currentDepth})
+					slog.Log(ctx, log.Trace, "href is relative, skipping", slog.String("href", href))
+					continue
+				}
+				if isMediaLink(href) {
+					cache.Add(href, Link{URL: href, Depth: currentDepth})
+					slog.Log(ctx, log.Trace, "href is for media, skipping", slog.String("href", href))
+					continue
+				}
+				link := Link{URL: href, Depth: currentDepth + 1}
+				foundLinks[href] = link
 				slog.Log(ctx, log.Trace, "found link", slog.Any("link", link))
-				links = append(links, link)
 			}
 		case html.ErrorToken:
 			// end of page
+
+			for _, l := range foundLinks {
+				links = append(links, l)
+			}
+
 			return links, nil
 		}
 	}
@@ -79,16 +100,17 @@ func isExternalLink(root *url.URL, href string) bool {
 }
 
 func isRelativeLink(href string) bool {
-	return len(href) > 1 && (string(href[0]) == REL_HASH || string(href[0]) == QUERY_PARAM)
+	return len(href) >= 1 && string(href[0]) == REL_HASH
+}
+
+func isMediaLink(href string) bool {
+	return filepath.Ext(href) != ""
 }
 
 func getHref(attr []html.Attribute) string {
-	// fmt.Printf("parsing tag attributes: %v\n", attr)
 	for _, a := range attr {
-		// fmt.Printf("tag attr: %s\n", a.Key)
 		if a.Key == HREF_KEY {
-			// fmt.Printf("found href value: %s\n", a.Val)
-			return a.Val
+			return strings.TrimRight(a.Val, SLASH)
 		}
 	}
 	return ""

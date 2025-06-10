@@ -19,3 +19,6 @@ Parse HTML body for links
 Store any links found on the page
 Return a list of links that can be parsed (depth + 1)
 Limit the parsing up to the specified depth
+
+## Issues
+- 
