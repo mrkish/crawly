@@ -2,14 +2,15 @@ package app
 
 import (
 	"context"
-	"crawly/internal/crawl"
-	"crawly/pkg/log"
 	"errors"
 	"log/slog"
 	"os"
 	"os/signal"
 	"syscall"
 	"time"
+
+	"github.com/mrkish/crawly/internal/crawl"
+	"github.com/mrkish/crawly/pkg/log"
 )
 
 var quit = func() chan os.Signal {
@@ -28,13 +29,12 @@ func Run(info BuildInfo) error {
 	if flags.URL == "" {
 		return errors.New("no root URL specified")
 	}
-	slog.Debug("setting up for crawling", slog.Any("flags", flags))
+
+	log.Init(flags.LogLevel)
+	slog.Info("initiating crawling", slog.Any("flags", flags))
 
 	ctx, cancel := context.WithTimeout(context.Background(), flags.Timeout)
 	defer cancel()
-
-	// cache := cache.New()
-	log.Init(flags.LogLevel)
 
 	type result struct {
 		pages []crawl.Page
@@ -53,18 +53,18 @@ func Run(info BuildInfo) error {
 	for {
 		select {
 		case <-ctx.Done():
-			cancel()
 			return errors.New("timed out attempting to crawl")
 		case <-quit:
 			slog.Error("received request to cancel, stopping")
-			cancel()
 			return nil
 		case result := <-resultChan:
 			slog.Info("finished crawling",
 				log.Duration(start),
 				"pages", result.pages,
-				log.Err(result.err),
 			)
+			if result.err != nil {
+				slog.Error("error from crawlin", log.Err(result.err))
+			}
 			return nil
 		}
 	}

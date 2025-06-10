@@ -1,4 +1,4 @@
-module crawly
+module github.com/mrkish/crawly
 
 go 1.24.3
 

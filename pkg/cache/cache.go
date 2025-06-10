@@ -4,7 +4,7 @@ import (
 	"sync"
 )
 
-type Cache[K comparable, V any] struct {
+type Hash[K comparable, V any] struct {
 	keyCleaner func(K) K
 	updateFn   func(V, V) V
 
@@ -12,8 +12,8 @@ type Cache[K comparable, V any] struct {
 	values map[K]V
 }
 
-func New[K comparable, V any](keyCleaner func(K) K, updateFn func(V, V) V) *Cache[K, V] {
-	return &Cache[K, V]{
+func New[K comparable, V any](keyCleaner func(K) K, updateFn func(V, V) V) *Hash[K, V] {
+	return &Hash[K, V]{
 		keyCleaner: keyCleaner,
 		updateFn:   updateFn,
 		mu:         &sync.RWMutex{},
@@ -21,7 +21,7 @@ func New[K comparable, V any](keyCleaner func(K) K, updateFn func(V, V) V) *Cach
 	}
 }
 
-func (c *Cache[K, V]) Has(key K) bool {
+func (c *Hash[K, V]) Has(key K) bool {
 	if c.keyCleaner != nil {
 		key = c.keyCleaner(key)
 	}
@@ -32,7 +32,7 @@ func (c *Cache[K, V]) Has(key K) bool {
 	return has
 }
 
-func (c *Cache[K, V]) Add(key K, value V) {
+func (c *Hash[K, V]) Add(key K, value V) {
 	if c.keyCleaner != nil {
 		key = c.keyCleaner(key)
 	}

@@ -1,11 +1,12 @@
 package semaphore_test
 
 import (
-	"crawly/pkg/semaphore"
 	"fmt"
 	"sync"
 	"testing"
 	"time"
+
+	"github.com/mrkish/crawly/pkg/semaphore"
 )
 
 func Test_Weighted(t *testing.T) {

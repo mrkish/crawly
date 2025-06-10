@@ -1,6 +1,7 @@
 package log
 
 import (
+	"context"
 	"log/slog"
 	"os"
 	"time"
@@ -11,17 +12,17 @@ const (
 	empty    = "empty"
 	errStr   = "error"
 
+	traceLevel string = "trace"
 	debugLevel string = "debug"
 	infoLevel  string = "info"
 	warnLevel  string = "warn"
 	errorLevel string = "error"
-	traceLevel string = "trace"
 
-	Trace = slog.Level(-8)
+	TraceLevel = slog.Level(-8)
 )
 
 var levels = map[slog.Leveler]string{
-	Trace: "TRACE",
+	TraceLevel: "TRACE",
 }
 
 func Init(level string) {
@@ -41,7 +42,7 @@ func Init(level string) {
 		},
 	})
 	slog.SetDefault(slog.New(handler))
-	slog.Info("configured logs")
+	slog.Debug("configured logs")
 }
 
 func getLevel(level string) slog.Level {
@@ -55,7 +56,7 @@ func getLevel(level string) slog.Level {
 	case errorLevel:
 		return slog.LevelError
 	case traceLevel:
-		return Trace
+		return TraceLevel
 	default:
 		return slog.LevelDebug
 	}
@@ -63,6 +64,10 @@ func getLevel(level string) slog.Level {
 
 func Duration(start time.Time) slog.Attr {
 	return slog.String(duration, time.Since(start).String())
+}
+
+func Trace(msg string, args ...any) {
+	slog.Log(context.Background(), TraceLevel, msg, args...)
 }
 
 func Err(err error) slog.Attr {

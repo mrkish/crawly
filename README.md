@@ -1,24 +1,33 @@
 # Crawly
+This is a toy project to build a simple web crawler.
 
-## Design
+## Usage
+The CLI app accepts a few flags to govern its behavior:
 
-### CLI
+  -u
+    Root URL to crawl. Required.
+    Default: https://www.scrapingcourse.com/ecommerce/
 
-### Steps
-- Pass a root URL and depth
-- The root URL will be fetched
-- Once the HTML is received, it will be parsed for any anchor tags
-  - Store the pages that have been parsed
-  - External anchor tags will be ignored
-  - Relative (page-internal) links will be ignored
-  - Duplicate links will not be traversed twice
+  -o
+    Output format. TODO!
 
+  -t
+    Timeout in seconds.
+    Default: 300
 
-Get HTML
-Parse HTML body for links
-Store any links found on the page
-Return a list of links that can be parsed (depth + 1)
-Limit the parsing up to the specified depth
+  -w
+    Number of workers (concurrent requests) to allow.
+    Default: 5
 
-## Issues
-- 
+  -d
+    Depth -- how far from the root URL to crawl.
+    Default: 3
+
+  -l
+    Log level. Levels are:
+      - trace
+      - debug
+      - info
+      - warn
+      - error
+    Default: info

@@ -2,39 +2,33 @@ package crawl
 
 import (
 	"context"
-	"crawly/pkg/cache"
-	"crawly/pkg/log"
 	"io"
 	"log/slog"
 	"net/url"
 	"path/filepath"
 	"strings"
 
-	"golang.org/x/net/html"
-)
+	"github.com/mrkish/crawly/pkg/cache"
+	"github.com/mrkish/crawly/pkg/log"
 
-const (
-	HTML_BODY   string = "body"
-	HREF_KEY    string = "href"
-	REL_HASH    string = "#"
-	QUERY_PARAM string = "?"
-	SLASH       string = "/"
+	"golang.org/x/net/html"
 )
 
 func parse(
 	ctx context.Context,
-	root *url.URL,
 	page io.ReadCloser,
+	rootURL *url.URL,
 	currentDepth int,
-	cache *cache.Cache[string, Link],
+	cache *cache.Set[string],
 ) ([]Link, error) {
 	defer page.Close()
 
 	var links []Link
 
-	// use a map to de-dupe output
-	foundLinks := make(map[string]Link)
+	foundLinks := make(map[string]struct{})
 	tokens := html.NewTokenizer(page)
+	isLinkInvalid := linkValidator(rootURL, foundLinks, cache)
+	nextDepth := currentDepth + 1
 
 	for {
 		if ctx.Err() != nil {
@@ -46,48 +40,33 @@ func parse(
 
 		switch tokenType {
 		case html.StartTagToken:
-			if token.Data == "a" {
+			if token.Data == a_tag {
 				href := getHref(token.Attr)
-				if href == "" {
+				if isLinkInvalid(href) {
 					continue
 				}
-				if cache.Has(href) {
-					slog.Log(ctx, log.Trace, "seen link, skipping", slog.String("href", href))
-					continue
-				}
-				if isRelativeLink(href) {
-					cache.Add(href, Link{URL: href, Depth: currentDepth})
-					slog.Log(ctx, log.Trace, "href is relative, skipping", slog.String("href", href))
-					continue
-				}
-				if isExternalLink(root, href) {
-					cache.Add(href, Link{URL: href, Depth: currentDepth})
-					slog.Log(ctx, log.Trace, "href is external, skipping", slog.String("href", href))
-					continue
-				}
-				if isRelativeLink(href) {
-					cache.Add(href, Link{URL: href, Depth: currentDepth})
-					slog.Log(ctx, log.Trace, "href is relative, skipping", slog.String("href", href))
-					continue
-				}
-				if isMediaLink(href) {
-					cache.Add(href, Link{URL: href, Depth: currentDepth})
-					slog.Log(ctx, log.Trace, "href is for media, skipping", slog.String("href", href))
-					continue
-				}
-				link := Link{URL: href, Depth: currentDepth + 1}
-				foundLinks[href] = link
-				slog.Log(ctx, log.Trace, "found link", slog.Any("link", link))
+				foundLinks[href] = struct{}{}
+				link := Link{URL: href, Depth: nextDepth}
+				links = append(links, link)
+				slog.Debug("found link", slog.Any("link", link))
 			}
 		case html.ErrorToken:
 			// end of page
-
-			for _, l := range foundLinks {
-				links = append(links, l)
-			}
-
 			return links, nil
 		}
+	}
+}
+
+func linkValidator(rootURL *url.URL, found map[string]struct{}, cache *cache.Set[string]) func(string) bool {
+	return func(href string) bool {
+		if href == "" || isRelativeLink(href) || isExternalLink(rootURL, href) || isMediaLink(href) {
+			return true
+		}
+		if _, ok := found[href]; ok || cache.Has(href) {
+			log.Trace("seen link, skipping", slog.String(href_key, href))
+			return true
+		}
+		return false
 	}
 }
 
@@ -96,21 +75,33 @@ func isExternalLink(root *url.URL, href string) bool {
 	if err != nil {
 		return false
 	}
-	return uri.Host != root.Host
+	isExternal := uri.Host != root.Host
+	if isExternal {
+		log.Trace("href is external, skipping", slog.String(href_key, href))
+	}
+	return isExternal
 }
 
 func isRelativeLink(href string) bool {
-	return len(href) >= 1 && string(href[0]) == REL_HASH
+	isRelLink := len(href) >= 1 && string(href[0]) == rel_hash
+	if isRelLink {
+		log.Trace("href is relative, skipping", slog.String(href_key, href))
+	}
+	return isRelLink
 }
 
 func isMediaLink(href string) bool {
-	return filepath.Ext(href) != ""
+	isFileLink := filepath.Ext(href) != ""
+	if isFileLink {
+		log.Trace("href is for media, skipping", slog.String(href_key, href))
+	}
+	return isFileLink
 }
 
 func getHref(attr []html.Attribute) string {
 	for _, a := range attr {
-		if a.Key == HREF_KEY {
-			return strings.TrimRight(a.Val, SLASH)
+		if a.Key == href_key {
+			return strings.TrimRight(a.Val, slash)
 		}
 	}
 	return ""

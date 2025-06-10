@@ -5,7 +5,7 @@ import (
 	"os"
 	"time"
 
-	"crawly/internal/app"
+	"github.com/mrkish/crawly/internal/app"
 )
 
 var (
@@ -20,7 +20,7 @@ func main() {
 		Commit:    commit,
 		Version:   version,
 	}); err != nil {
-		fmt.Printf("error ocurred: %s\n", err.Error())
+		fmt.Printf("error occurred: %s\n", err.Error())
 		os.Exit(1)
 	}
 }

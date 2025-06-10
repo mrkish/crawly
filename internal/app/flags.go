@@ -17,7 +17,7 @@ type Flags struct {
 func readFlags() Flags {
 	depth := flag.Int("d", 3, "Defines how many levels below the root URL should be crawled. Default: 3.")
 	timeout := flag.Int("t", 300, "Defines the maximum time in seconds to allow the crawling to continue. Default: 300.")
-	logLevel := flag.String("l", "debug", "Defines logging output level. Default: error.")
+	logLevel := flag.String("l", "info", "Defines logging output level. Default: error.")
 	workers := flag.Int("w", 5, "Defines the number of workers (concurrent) to use. Default: 5.")
 	output := flag.String("o", "json", "Defines the output format. Default: JSON.")
 	url := flag.String("u", "https://www.scrapingcourse.com/ecommerce/", "Defines the root URL to crawl. Required value.")
