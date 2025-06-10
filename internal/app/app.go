@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"github.com/mrkish/crawly/internal/crawl"
+	"github.com/mrkish/crawly/internal/model"
 	"github.com/mrkish/crawly/pkg/log"
 )
 
@@ -39,7 +40,7 @@ func Run(info BuildInfo) error {
 	defer cancel()
 
 	type result struct {
-		pages []crawl.Page
+		pages []model.Page
 		err   error
 	}
 	resultChan := make(chan result)

@@ -1,10 +1,10 @@
-package crawl
+package parse
 
 import (
 	"testing"
 )
 
-func Test_Fetch(t *testing.T) {
+func Test_Page(t *testing.T) {
 	tt := []struct {
 		name string
 	}{

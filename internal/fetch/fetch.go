@@ -1,4 +1,4 @@
-package crawl
+package fetch
 
 import (
 	"context"
@@ -11,7 +11,7 @@ import (
 	"github.com/mrkish/crawly/pkg/log"
 )
 
-func fetch(ctx context.Context, url string) (io.ReadCloser, error) {
+func Page(ctx context.Context, url string) (io.ReadCloser, error) {
 	slog.Debug("fetching URL", slog.String("url", url))
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
