@@ -1,10 +1,10 @@
-package crawl
+package fetch_test
 
 import (
 	"testing"
 )
 
-func Test_Parse(t *testing.T) {
+func Test_Fetch(t *testing.T) {
 	tt := []struct {
 		name string
 	}{
