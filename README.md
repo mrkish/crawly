@@ -4,6 +4,7 @@ This is a toy project to build a simple web crawler.
 ## Usage
 The CLI app accepts a few flags to govern its behavior:
 
+```
   -u
     Root URL to crawl. Required.
     Default: https://www.scrapingcourse.com/ecommerce/
@@ -31,3 +32,4 @@ The CLI app accepts a few flags to govern its behavior:
       - warn
       - error
     Default: info
+```

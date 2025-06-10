@@ -46,7 +46,7 @@ func Init(level string, commit, version string) {
 
 	logger := slog.New(handler)
 
-	if buildInfo, ok := debug.ReadBuildInfo(); ok && logLevel > slog.LevelInfo {
+	if buildInfo, ok := debug.ReadBuildInfo(); ok {
 		logger = logger.With(
 			slog.Group("buildInfo",
 				slog.String("commit", commit),

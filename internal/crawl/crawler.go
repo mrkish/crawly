@@ -72,6 +72,8 @@ func startCrawl(
 	var err error
 	parsedPages := make(chan Page)
 	sem := semaphore.New(workers)
+	defer sem.Close()
+
 	crawlPage := buildCrawler(rootURL, sem, cache)
 
 	var rootPage Page
