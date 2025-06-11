@@ -11,6 +11,7 @@ import (
 
 	"github.com/mrkish/crawly/internal/crawl"
 	"github.com/mrkish/crawly/internal/model"
+	"github.com/mrkish/crawly/internal/report"
 	"github.com/mrkish/crawly/pkg/log"
 )
 
@@ -35,6 +36,8 @@ func Run(info BuildInfo) error {
 	slog.Info("initiating crawling",
 		slog.Any("flags", flags),
 	)
+
+	output := report.VerifyOutput(flags.Output)
 
 	ctx, cancel := context.WithTimeout(context.Background(), flags.Timeout)
 	defer cancel()
@@ -62,12 +65,13 @@ func Run(info BuildInfo) error {
 			return nil
 		case result := <-resultChan:
 			slog.Info("finished crawling",
+				slog.Int("result count", len(result.pages)),
 				log.Duration(start),
-				"pages", result.pages,
 			)
 			if result.err != nil {
-				slog.Error("error from crawlin", log.Err(result.err))
+				slog.Error("error from crawling", log.Err(result.err))
 			}
+			report.Out(result.pages, output)
 			return nil
 		}
 	}

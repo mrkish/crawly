@@ -56,10 +56,9 @@ func FromRoot(ctx context.Context, root string, workers, maxDepth int) ([]model.
 				}
 			}
 
-			slog.Debug("finished processing page result", slog.Any("pending", pending))
+			slog.Debug("finished processing page result", slog.Uint64("pending", uint64(pending)))
 
 			if pending == 0 {
-				slog.Info("crawling completed")
 				return pages, nil
 			}
 		}

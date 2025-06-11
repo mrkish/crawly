@@ -29,7 +29,8 @@ var levels = map[slog.Leveler]string{
 func Init(level string, commit, version string) {
 	logLevel := getLevel(level)
 	handler := slog.NewJSONHandler(os.Stdout, &slog.HandlerOptions{
-		AddSource: logLevel < slog.LevelInfo,
+		// AddSource: logLevel < slog.LevelInfo,
+		AddSource: false,
 		Level:     logLevel,
 		ReplaceAttr: func(groups []string, a slog.Attr) slog.Attr {
 			if a.Key == slog.LevelKey {
@@ -46,7 +47,7 @@ func Init(level string, commit, version string) {
 
 	logger := slog.New(handler)
 
-	if buildInfo, ok := debug.ReadBuildInfo(); ok {
+	if buildInfo, ok := debug.ReadBuildInfo(); ok && logLevel < slog.LevelDebug {
 		logger = logger.With(
 			slog.Group("buildInfo",
 				slog.String("commit", commit),
