@@ -31,6 +31,15 @@ func (c *Hashed[K, V]) Has(key K) (has bool) {
 	return has
 }
 
+func (c *Hashed[K, V]) Get(key K) V {
+	if c.keyCleaner != nil {
+		key = c.keyCleaner(key)
+	}
+	c.mu.RLock()
+	defer c.mu.RUnlock()
+	return c.values[key]
+}
+
 func (c *Hashed[K, V]) Add(key K, value V) {
 	if c.keyCleaner != nil {
 		key = c.keyCleaner(key)

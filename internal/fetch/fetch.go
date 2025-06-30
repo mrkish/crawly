@@ -8,17 +8,24 @@ import (
 	"net/http"
 	"time"
 
+	"github.com/mrkish/crawly/internal/client"
 	"github.com/mrkish/crawly/pkg/log"
 )
 
-func Page(ctx context.Context, url string) (io.ReadCloser, error) {
+func Page(ctx context.Context, c *client.Client, url string) (io.ReadCloser, error) {
+	if c == nil {
+		return page(ctx, client.New(), url)
+	}
+	return page(ctx, c, url)
+}
+
+func page(ctx context.Context, c *client.Client, url string) (io.ReadCloser, error) {
 	slog.Debug("fetching URL", slog.String("url", url))
 	if ctx.Err() != nil {
 		return nil, ctx.Err()
 	}
-	var res *http.Response
 	start := time.Now()
-	res, err := http.Get(url)
+	res, err := c.Do(ctx, http.MethodGet, url, nil)
 	if err != nil {
 		return nil, err
 	}

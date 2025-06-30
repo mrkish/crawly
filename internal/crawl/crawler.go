@@ -7,6 +7,7 @@ import (
 	"strings"
 	"sync/atomic"
 
+	"github.com/mrkish/crawly/internal/client"
 	"github.com/mrkish/crawly/internal/constants"
 	"github.com/mrkish/crawly/internal/fetch"
 	"github.com/mrkish/crawly/internal/model"
@@ -76,10 +77,10 @@ func startCrawl(
 	parsedPages := make(chan model.Page)
 	sem := semaphore.New(workers)
 
-	crawlPage := buildCrawler(rootURL, sem, cache)
+	crawlPage := buildCrawler(rootURL, workers, sem, cache)
 
-	var rootPage model.Page
-	rootPage.Links, err = crawlPage(ctx, model.Link{URL: rootURL.String(), Depth: 1})
+	rootPage := model.Page{Link: model.Link{URL: rootURL.String(), Depth: 1}}
+	rootPage.Links, err = crawlPage(ctx, rootPage.Link)
 	if err != nil {
 		return nil, err
 	}
@@ -136,7 +137,8 @@ func startCrawl(
 
 type crawlerFunc func(context.Context, model.Link) ([]model.Link, error)
 
-func buildCrawler(rootURL *url.URL, sem *semaphore.Weighted, cache *cache.Set[string]) crawlerFunc {
+func buildCrawler(rootURL *url.URL, workers int, sem *semaphore.Weighted, cache *cache.Set[string]) crawlerFunc {
+	c := client.New(workers)
 	return func(
 		ctx context.Context,
 		link model.Link,
@@ -145,7 +147,7 @@ func buildCrawler(rootURL *url.URL, sem *semaphore.Weighted, cache *cache.Set[st
 		sem.Acquire()
 		cache.Add(link.URL)
 
-		data, err := fetch.Page(ctx, link.URL)
+		data, err := fetch.Page(ctx, c, link.URL)
 		if err != nil {
 			return nil, err
 		}

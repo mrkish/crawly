@@ -1,8 +1,8 @@
 package model
 
 type Page struct {
-	Link
-	Links []Link
+	Link  `json:"page"`
+	Links []Link `json:"links,omitempty"`
 }
 
 func NewPage(url string, depth int, links ...Link) Page {
