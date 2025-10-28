@@ -1,20 +1,21 @@
 package report
 
 import (
+	"fmt"
 	"log/slog"
 	"strings"
 
 	"github.com/mrkish/crawly/internal/model"
 )
 
-type Output string
+type Type string
 
 const (
-	JSON Output = "json"
-	CSV  Output = "csv"
+	JSON Type = "json"
+	CSV  Type = "csv"
 )
 
-func VerifyOutput(output string) Output {
+func VerifyOutput(output string) Type {
 	switch strings.ToLower(output) {
 	case "csv":
 		return CSV
@@ -24,8 +25,12 @@ func VerifyOutput(output string) Output {
 	}
 }
 
-func Out(results []model.Page, output Output) {
-	switch output {
+// Out controls outputing the result into the output channel
+func Out(results []model.Page, outputType Type) {
+	for _, r := range results {
+		fmt.Println(r)
+	}
+	switch outputType {
 	case JSON:
 		slog.Info("finished crawling",
 			"pages", results,

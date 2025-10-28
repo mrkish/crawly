@@ -6,6 +6,7 @@ import (
 	"net/url"
 	"strings"
 	"sync/atomic"
+	"time"
 
 	"github.com/mrkish/crawly/internal/client"
 	"github.com/mrkish/crawly/internal/constants"
@@ -28,7 +29,7 @@ func FromRoot(ctx context.Context, root string, workers, maxDepth int) ([]model.
 	linkQueue := make(chan model.Link)
 	defer close(linkQueue)
 
-	parsedPages, err := startCrawl(ctx, rootURL, workers, maxDepth, cache, linkQueue)
+	parsedPages, err := crawl(ctx, rootURL, workers, maxDepth, cache, linkQueue)
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +67,7 @@ func FromRoot(ctx context.Context, root string, workers, maxDepth int) ([]model.
 	}
 }
 
-func startCrawl(
+func crawl(
 	ctx context.Context,
 	rootURL *url.URL,
 	workers, maxDepth int,
@@ -109,8 +110,10 @@ func startCrawl(
 					return
 				case l := <-linkQueue:
 					go func(link model.Link) {
+						start := time.Now()
 						defer slog.Debug("crawling goroutine exited",
 							slog.String("url", link.URL),
+							slog.Duration("duration", time.Since(start)),
 						)
 
 						slog.Debug("crawling url",
